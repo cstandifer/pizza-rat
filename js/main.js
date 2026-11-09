@@ -202,7 +202,10 @@ async function loadModels() {
     loader.loadAsync('assets/rat.glb'),
     loader.loadAsync('assets/pizza.glb'),
     loader.loadAsync('assets/station.glb', (e) => {
-      if (e.total) startBtn.textContent = `Loading station… ${Math.round((e.loaded / e.total) * 100)}%`;
+      // (GitHub Pages sends the file compressed, so e.total there is the smaller compressed size;
+      // 30.5 MB is the file's real size)
+      const pct = Math.min(99, Math.round((e.loaded / Math.max(e.total, 30.5e6)) * 100));
+      startBtn.textContent = `Loading station… ${pct}%`;
     }),
   ]);
   station.setModel(stationGltf);

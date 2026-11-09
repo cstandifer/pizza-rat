@@ -1,0 +1,176 @@
+:root {
+  --hud: #ffffff;
+  --rec: #ff3b30;
+  --pink: #ff2e88;
+  --bg: #07080a;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Soft cinematic vignette */
+#vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+/* ---------- Phone camera HUD ---------- */
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+#hud.on { opacity: 1; }
+
+.corner {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--hud);
+}
+.corner.tl { top: 28px; left: 28px; border-right: none; border-bottom: none; }
+.corner.tr { top: 28px; right: 28px; border-left: none; border-bottom: none; }
+.corner.bl { bottom: 28px; left: 28px; border-right: none; border-top: none; }
+.corner.br { bottom: 28px; right: 28px; border-left: none; border-top: none; }
+
+#rec {
+  position: absolute;
+  top: 40px;
+  left: 92px;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+#rec .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--rec);
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+#views {
+  position: absolute;
+  top: 36px;
+  right: 92px;
+  font-size: 20px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid var(--pink);
+  color: #fff;
+}
+#views.bump { animation: bump 0.25s ease-out; }
+@keyframes bump { 0% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
+/* Camera flash */
+#flash {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- Webcam preview ---------- */
+#camBox {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  width: 192px;
+  opacity: 0.85;
+}
+#camPreview {
+  width: 192px;
+  height: 144px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: #000;
+  transform: scaleX(-1); /* mirror so it feels natural */
+  display: block;
+}
+#status {
+  margin-top: 6px;
+  font: 12px ui-monospace, Menlo, monospace;
+  color: #9fe870;
+  text-align: right;
+  text-shadow: 0 1px 2px #000;
+}
+body.hide-cam #camBox { display: none; }
+
+/* ---------- Start screen ---------- */
+#start {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 6, 8, 0.72);
+  z-index: 10;
+  padding: 16px;
+}
+#start.gone { display: none; }
+#start .card {
+  max-width: 440px;
+  text-align: center;
+}
+#start h1 {
+  font-size: 56px;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+#start p { color: #cfd3d8; line-height: 1.5; }
+#start .hint { font-size: 13px; color: #8b9096; }
+#startBtn {
+  margin-top: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 12px 32px;
+  border-radius: 999px;
+  border: none;
+  background: var(--pink);
+  color: #fff;
+  cursor: pointer;
+}
+#startBtn:disabled { background: #444; cursor: default; }
+kbd {
+  font-family: ui-monospace, Menlo, monospace;
+  border: 1px solid #666;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+#credits {
+  position: fixed;
+  left: 16px;
+  bottom: 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+}
+#credits a { color: rgba(255, 255, 255, 0.6); }

@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Full-size original downloads (the station is 251 MB, over GitHub's 100 MB limit).
+# The project uses the trimmed copies in assets/.
+assets/source/
+
+# Local editor / Claude Code settings
+.claude/
+
+__pycache__/

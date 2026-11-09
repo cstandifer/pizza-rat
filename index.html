@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pizza Rat</title>
+
+  <!-- ArUco marker tracking: js-aruco2, a fork of the class base code's js-aruco that can also read
+       the OpenCV 6x6 dictionary (the "6x6" tags from online ArUco generators). -->
+  <script src="https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/cv.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/aruco.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/dictionaries/aruco_6x6_1000.js"></script>
+
+  <!-- Three.js for the 3D scene -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- The 3D scene renders into this canvas -->
+  <canvas id="scene"></canvas>
+  <div id="vignette"></div>
+
+  <!-- Phone-camera HUD: appears while the paper phone flap is pulled -->
+  <div id="hud">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <div id="rec"><span class="dot"></span>rec <span id="timecode">00:00:00</span></div>
+    <div id="views"><span id="viewCount">0</span> views</div>
+  </div>
+  <div id="flash"></div>
+
+  <!-- Small webcam preview so you can see the tag being tracked -->
+  <div id="camBox">
+    <canvas id="camPreview" width="192" height="144"></canvas>
+    <div id="status">Camera off</div>
+  </div>
+
+  <!-- Start screen (browsers need a click before sound can play) -->
+  <div id="start">
+    <div class="card">
+      <h1>Pizza Rat</h1>
+      <p>Pull the flap on the paper phone to take his picture.<br>
+         Close it and he'll sneak back for his slice.</p>
+      <button id="startBtn" disabled>Loading…</button>
+      <p class="hint">No camera? Hold the <kbd>space</kbd> bar to fake the tag.</p>
+    </div>
+  </div>
+
+  <footer id="credits">
+    "<a href="https://sketchfab.com/3d-models/black-rat-free-download-3db3acb4140d4de8bd62a171212bad9c" target="_blank">Black Rat</a>" by Nestaeric ·
+    "<a href="https://sketchfab.com/3d-models/slice-of-pizza-b8c251d79e104922bc0497a5d2fdf822" target="_blank">Slice Of Pizza</a>" by Ervinas ·
+    "<a href="https://sketchfab.com/3d-models/free-subway-station-r46-subway-ae5aadde1c6f48a19b32b309417a669b" target="_blank">Subway Station &amp; R46 Subway</a>" by Alex Murias (Unikosplay) ·
+    <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank">CC BY 4.0</a> ·
+    Subway sound by freesound_community
+  </footer>
+
+  <!-- Hidden webcam + detection canvas -->
+  <video id="webcam" width="640" height="480" autoplay playsinline muted style="display:none"></video>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -6,6 +6,10 @@ New York's famous Pizza Rat drags a slice down an endless staircase at Spring St
 
 **Try it live:** https://cstandifer.github.io/pizza-rat/ (allow the camera; no tag? hold the space bar)
 
+![Pizza Rat drags his slice down the stairs. The paper phone's flap is pulled, the camera flashes and he bolts over the edge to hide, then sneaks back for the slice once the flap closes.](docs/demo.webp)
+
+*The flap gets pulled, the webcam finds the tag inside the apple ("Tag 0 — flap pulled!"), and Pizza Rat drops his slice and hides until it's safe. The webcam view in the corner is enlarged in this clip so you can see the paper phone.*
+
 ---
 
 ## The paper controller
@@ -18,6 +22,12 @@ The controller has two states:
 | **Pulled** | An ArUco tag | Camera flash and phone-camera overlay (REC, view counter). He drops the slice and hides |
 
 The tag is hidden **inside an Apple logo** on the paper phone: a solid black apple with **ArUco tag 0 from the 6x6 dictionary** printed in it. The tag's black border melts into the apple's black, so it reads as part of the logo. The project includes its own reader for that (see [How it works](#how-it-works)).
+
+### The apple tag: print your own
+
+<a href="docs/apple-tag-0.png"><img src="docs/apple-tag-0.png" alt="ArUco 6x6 tag 0 hidden inside a black Apple logo" width="240"></a>
+
+**[Download the apple tag (PNG, 1440 × 1680)](https://github.com/cstandifer/pizza-rat/raw/main/docs/apple-tag-0.png)**. It's print quality, so you can also right-click the image above to copy or save it.
 
 Printing tips:
 

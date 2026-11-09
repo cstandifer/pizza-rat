@@ -8,7 +8,7 @@ New York's famous Pizza Rat drags a slice down an endless staircase at Spring St
 
 ![Pizza Rat drags his slice down the stairs. The paper phone's flap is pulled, the camera flashes and he bolts over the edge to hide, then sneaks back for the slice once the flap closes.](docs/demo.webp)
 
-*The flap gets pulled, the webcam finds the tag inside the apple ("Tag 0 — flap pulled!"), and Pizza Rat drops his slice and hides until it's safe. The webcam view in the corner is enlarged in this clip so you can see the paper phone.*
+*The paper phone flips up to face the webcam, the tracker finds the tag inside the apple ("Tag 0 — flap pulled!"), and Pizza Rat drops his slice and hides. When the phone goes back down he sneaks back for it. The webcam view in the corner is enlarged in this clip so you can see the paper phone.*
 
 ---
 

@@ -935,14 +935,103 @@ function updateTail(dt, speed) {
     const k = 90 - 40 * u, damping = 9 - 4 * u;                // tip is looser than the base
     v.addScaledVector(_tt.clone().sub(c), k * dt).multiplyScalar(Math.exp(-damping * dt));
     c.addScaledVector(v, dt).normalize();
-    // keep the tail out of the stairs
-    const floor = treadTop(_ta.x + c.x * len) + 0.006;
-    if (_ta.y + c.y * len < floor) { c.y += (floor - _ta.y - c.y * len) / len; c.normalize(); v.multiplyScalar(0.5); }
     // turn this segment from where the animation put it to the lagged direction (at most ~45°)
     _tq.setFromUnitVectors(_td, c);
     const ang = 2 * Math.acos(Math.min(1, Math.abs(_tq.w)));
     if (ang > 0.8) _tq.slerp(new THREE.Quaternion(), 1 - 0.8 / ang);
     rotateBoneWorld(b, _tq);
+  }
+  keepTailOutOfStairs();
+}
+
+// ---------- Keeping the whole tail out of the stairs ----------
+// Every point along the tail, with its thickness, stays out of the steps, the face of the step behind
+// him (his tail trails back toward the higher step he just came down), the trim on each step's edge
+// and the hiding ledge. A segment that would go in is turned (upward first) just enough to clear, so
+// the tail rests on the tread, lies up against the step behind and drapes over its edge.
+const TAIL_THICK = [0.0045, 0.0015]; // tail radius (m) by his rump and at the tip, with a little margin
+function tailHitsStairs(x, y, z, r) {
+  if (z > STAIR_W / 2 + r || z < EDGE_Z - LEDGE_W - r) return false;
+  const i = Math.floor(x / STEP_D), top = -i * STEP_H;
+  if (z > EDGE_Z - r) {                                    // over the stairs (or brushing their open side)
+    const strip = x > (i + 1) * STEP_D - 0.06 ? 0.005 : 0;  // the yellow strip along the step's front edge
+    if (y < top + strip + r) return true;
+    if (y < top + STEP_H && x - i * STEP_D < 0.008 + r) return true; // face of the step behind (its metal strip sticks out 7 mm)
+  }
+  if (z < EDGE_Z) {                                        // the hiding ledge along the open side
+    const lt = top - HIDE_SINK;
+    if (y < lt + r && y > lt - LEDGE_T - r) return true;
+  }
+  return false;
+}
+// is the segment starting at a, pointing along unit vector dir, len long, clear of the stairs?
+// (from = how far along it to start checking: 0.5 checks just its far half)
+function tailSegmentClear(a, dir, len, r0, r1, from = 0) {
+  const n = Math.max(2, Math.ceil(len / 0.008));
+  for (let s = 1; s <= n; s++) {
+    const t = s / n;
+    if (t < from || (len > 0.05 && t < 0.3)) continue; // (the long root segment starts inside his rump)
+    if (tailHitsStairs(a.x + dir.x * len * t, a.y + dir.y * len * t, a.z + dir.z * len * t, r0 + (r1 - r0) * t)) return false;
+  }
+  return true;
+}
+const _tp = [], _tc = new V3(), _tf = new V3(), _ts = new V3(), _tbest = new V3(), _tfar = new V3();
+const TAIL_YAWS = [0, 0.5, -0.5, 1.0, -1.0, 1.6, -1.6, 2.4, -2.4, Math.PI];
+const TAIL_PITCHES = [0];
+for (let k = 1; k <= 31; k++) TAIL_PITCHES.push(Math.ceil(k / 2) * 0.1 * (k % 2 ? 1 : -1)); // 0, +0.1, -0.1, +0.2 ...
+function keepTailOutOfStairs() {
+  const B = tail.bones, n = B.length;
+  for (let i = 0; i < n; i++) {
+    if (!_tp[i]) _tp[i] = new V3();
+    B[i].getWorldPosition(_tp[i]);
+  }
+  let moved = false;
+  for (let i = 0; i < n - 1; i++) {
+    const a = _tp[i], b = _tp[i + 1];
+    const len = a.distanceTo(b);
+    if (len < 1e-5) continue;
+    _tf.subVectors(b, a).divideScalar(len);
+    const r0 = TAIL_THICK[0] + (TAIL_THICK[1] - TAIL_THICK[0]) * (i / (n - 1));
+    const r1 = TAIL_THICK[0] + (TAIL_THICK[1] - TAIL_THICK[0]) * ((i + 1) / (n - 1));
+    if (tailSegmentClear(a, _tf, len, r0, r1)) continue;
+    // the clear direction closest to where it points: tilt it (up or down) first; if it has to turn
+    // a long way, also try swinging it round. If its start is stuck (nothing fully clears), at least
+    // get its far end out so the rest of the tail can come free.
+    const flat = Math.hypot(_tf.x, _tf.z);
+    const heading = flat > 1e-4 ? Math.atan2(_tf.z, _tf.x) : 0;
+    const pitch0 = Math.atan2(_tf.y, flat);
+    let found = false, bestDot = -2, farFound = false, farDot = -2;
+    for (const yaw of TAIL_YAWS) {
+      const h = heading + yaw;
+      for (const dp of TAIL_PITCHES) {
+        const p = pitch0 + dp;
+        if (p < -Math.PI / 2 || p > Math.PI / 2) continue;
+        _tc.set(Math.cos(p) * Math.cos(h), Math.sin(p), Math.cos(p) * Math.sin(h));
+        const d = _tc.dot(_tf);
+        if (d <= bestDot) continue;
+        if (tailSegmentClear(a, _tc, len, r0, r1)) { bestDot = d; _tbest.copy(_tc); found = true; break; } // (closest for this heading)
+        if (!found && d > farDot && tailSegmentClear(a, _tc, len, r0, r1, 0.5)) { farDot = d; _tfar.copy(_tc); farFound = true; }
+      }
+      if (found && yaw === 0 && bestDot > 0.92) break; // a small tilt was enough
+    }
+    if (!found && farFound) { _tbest.copy(_tfar); found = true; }
+    if (!found) continue;
+    // move this joint there, and the rest of the tail along with it
+    _ts.copy(a).addScaledVector(_tbest, len).sub(b);
+    for (let j = i + 1; j < n; j++) _tp[j].add(_ts);
+    if (tail.cur[i]) { tail.cur[i].copy(_tbest); tail.vel[i].multiplyScalar(0.3); }
+    moved = true;
+  }
+  if (!moved) return;
+  // turn the bones to match
+  for (let i = 0; i < n - 1; i++) {
+    B[i].getWorldPosition(_ta);
+    B[i + 1].getWorldPosition(_tb);
+    _td.subVectors(_tb, _ta).normalize();
+    _tc.subVectors(_tp[i + 1], _tp[i]).normalize();
+    if (_td.dot(_tc) > 0.99999) continue;
+    _tq.setFromUnitVectors(_td, _tc);
+    rotateBoneWorld(B[i], _tq);
   }
 }
 

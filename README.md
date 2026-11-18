@@ -172,6 +172,7 @@ The step-down still looked scripted ("as soon as his body dips off the stairs, g
 - He **sits up at edges** sometimes (not every step) and **doesn't stop at every step**.
 - **Back legs bound** like jumping and stepping as he goes over an edge. **Front paws land and walk** on the step below.
 - **Tail:** a springy chain that lags, droops, swishes and folds. (The model's tail bones had dots stripped from their names, so the first version never moved.)
+- **Tail out of the stairs:** the tail used to clip into the stairs in about a quarter of frames, mostly into the face of the higher step he'd just come down. Now every point along the tail, with its thickness, stays out of the steps, their edge trim and the hiding ledge. A segment that would go in turns just enough to clear, so the tail lies on the step and drapes back over the edge.
 - **His back half drops level** right after it comes off the step.
 - **Front legs don't scurry** faster than he's actually moving. The walk cycle's speed follows his real speed, so his paws don't skate.
 - **Bigger, more natural strides** across each step: the walk animation is exaggerated 1.35×.

@@ -6,9 +6,9 @@ New York's famous Pizza Rat drags a slice down an endless staircase at Spring St
 
 **Try it live:** https://cstandifer.github.io/pizza-rat/ (allow the camera; no tag? hold the space bar)
 
-![Pizza Rat drags his slice down the stairs. The paper phone's flap is pulled, the camera flashes and he bolts over the edge to hide, then sneaks back for the slice once the flap closes.](docs/demo.webp)
+![Pizza Rat hops down the subway stairs dragging his slice. The camera flashes, he drops the slice and hides over the edge, then climbs back, grabs it and carries on down.](docs/demo.webp)
 
-*The paper phone flips up to face the webcam, the tracker finds the tag inside the apple ("Tag 0 — flap pulled!"), and Pizza Rat drops his slice and hides. When the phone goes back down he sneaks back for it. The webcam view in the corner is enlarged in this clip so you can see the paper phone.*
+*Recorded straight from the app: he hops down the steps with his slice (front paws first, back paws right after). Then the flap is pulled (triggered in code for this clip; see the paper phone below): the camera flashes, the phone overlay comes up, and he drops the slice and hides over the edge. When the flap closes he climbs back, sneaks over, grabs his slice and keeps going.*
 
 ---
 
@@ -20,6 +20,10 @@ The controller has two states:
 |---|---|---|
 | **Closed** | No tag | Pizza Rat keeps dragging his slice down the stairs |
 | **Pulled** | An ArUco tag | Camera flash and phone-camera overlay (REC, view counter). He drops the slice and hides |
+
+![The paper phone flips up in front of the webcam and the tracker outlines the tag in the apple; on screen the camera flashes and Pizza Rat drops his slice and hides.](docs/paper-phone.webp)
+
+*The real controller in use (an earlier version of the animation). The paper phone flips up to face the webcam, the tracker finds the tag inside the apple ("Tag 0 — flap pulled!"), and Pizza Rat drops his slice and hides. When the phone goes back down he sneaks back for it. The webcam view in the corner is enlarged so you can see the paper phone.*
 
 The tag is hidden **inside an Apple logo** on the paper phone: a solid black apple with **ArUco tag 0 from the 6x6 dictionary** printed in it. The tag's black border melts into the apple's black, so it reads as part of the logo. The project includes its own reader for that (see [How it works](#how-it-works)).
 

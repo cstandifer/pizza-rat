@@ -171,6 +171,7 @@ The step-down still looked scripted ("as soon as his body dips off the stairs, g
 - The pizza is **dragged beside and behind him**, as in the real video, **held by the crust edge in his mouth**: pinned at his front teeth, with his jaw opened.
 - He **sits up at edges** sometimes (not every step) and **doesn't stop at every step**.
 - **Back legs bound** like jumping and stepping as he goes over an edge. **Front paws land and walk** on the step below.
+- **Back legs land softly:** they used to finish their stride early and land stiff and straight, kicked out behind him. Now they push off, swing forward in time with his drop, land bent under his hips and push back into the walk. The push after landing is visual only, so it doesn't tip his nose up while his front paws are mid-stride.
 - **Tail:** a springy chain that lags, droops, swishes and folds. (The model's tail bones had dots stripped from their names, so the first version never moved.)
 - **Tail out of the stairs:** the tail used to clip into the stairs in about a quarter of frames, mostly into the face of the higher step he'd just come down. Now every point along the tail, with its thickness, stays out of the steps, their edge trim and the hiding ledge. A segment that would go in turns just enough to clear, so the tail lies on the step and drapes back over the edge.
 - **His back half drops level** right after it comes off the step.

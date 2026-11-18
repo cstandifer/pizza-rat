@@ -632,18 +632,20 @@ const _pl = new V3();
 function measurePaws(dt) {
   if (!phys.active) return;
   const k = dt ? damp(12, dt) : 1;
-  const meas = (bones, out) => {
+  const meas = (bones, out, planted = false) => {
     if (!bones.length) return;
     let u = 0, v = Infinity;
     for (const b of bones) { ratPitch.worldToLocal(b.getWorldPosition(_pl)); u += _pl.x; v = Math.min(v, _pl.y); }
     u /= bones.length;
-    out.u += (u - out.u) * k;
+    if (!planted) out.u += (u - out.u) * k;
     // a paw reaching down (the reach/hang poses) touches sooner; a paw lifted mid-stride still
     // counts as standing (his leg would just straighten), so it never props him up or tips him
     out.v += (Math.min(0, v - PAW_REST_Y) - out.v) * k;
   };
   meas(rig.frontPaws, phys.front);
-  meas(rig.hindPaws, phys.hind);
+  // (just after landing his back legs push back, bent, into the walk; that's for show: his weight
+  // stays where his paws touched down, or the push would tip his nose up with his front paws mid-stride)
+  meas(rig.hindPaws, phys.hind, walkPhase === 'settle' && landT < LAND_STANCE);
   if (noseTip) {
     ratPitch.worldToLocal(noseTip.getWorldPosition(_pl));
     phys.nose = phys.nose || { u: _pl.x, v: _pl.y };
@@ -730,7 +732,16 @@ const REACH_SHOULDERS = 0.8; // radians: shoulders curl down toward the lower st
 // --- held leg poses: front legs reaching forward/down, back legs stretched down ---
 // When a pair of paws is out over a drop, those legs stop walking and hold a reach instead.
 // The poses are single frames taken from the run animation (where the legs extend furthest).
-const legPose = { front: null, hind: null, wFront: 0, wHind: 0, tTuck: 0, tReach: 0, tPush: 0, hindDur: 1, bound: 0, fStride: 0 };
+const legPose = {
+  front: null, hind: null, wFront: 0, wHind: 0, tTuck: 0, tReach: 0, tPush: 0, hindDur: 1, fStride: 0,
+  tGather: 0, swingDur: 0.5, stanceDur: 0.5, // back legs: kicked back (tPush) -> forward under him (tGather) -> back again
+  tip: 0, swing: 0,                          // steepest tilt on this step, and how far through the drop he is (0..1)
+};
+const LAND_STANCE = 0.38; // seconds his back legs take to push through, bent, after landing
+// The gallop swings the back paws all the way under his chest; he lands with them under his hips
+// (~2.5 cm forward), so the swing stops short, and after landing they push back from there.
+const SWING_TO = 0.72;               // how far through the gallop's swing the paws get by landing
+const STANCE_FROM = 0.33, STANCE_TO = 0.85; // the part of the gallop's stance they push back through
 const LEG_OVERRIDE = 30; // high weight so the held pose wins over the walk cycle for those legs
 
 function buildLegPoses(runClip, ratScene) {
@@ -793,6 +804,10 @@ function buildLegPoses(runClip, ratScene) {
   legPose.hind = ha;
   legPose.hindDur = runClip.duration;
   legPose.tPush = bestTime(/^LegFootik/, (p) => -p.dot(fwd) - 0.3 * p.dot(up)); // kicked back and down
+  legPose.tGather = bestTime(/^LegFootik/, (p) => p.dot(fwd) - 0.2 * p.dot(up)); // swung forward under him, reaching down
+  const dur = runClip.duration;
+  legPose.swingDur = (((legPose.tGather - legPose.tPush) % dur) + dur) % dur;   // push -> gather (in the air)
+  legPose.stanceDur = dur - legPose.swingDur;                                    // gather -> push (on the ground)
 }
 
 /**
@@ -1458,16 +1473,30 @@ function updateRat(dt, tagOn) {
   if (phys.frontLanded) { phys.frontLanded = false; if (walking) legPose.fStride = 1e-4; }
   if (legPose.fStride > 0) { legPose.fStride += dt / 0.6; if (legPose.fStride >= 1 || !walking) legPose.fStride = 0; }
   const goalF = !walking ? 0 : legPose.fStride > 0 ? 1 : THREE.MathUtils.clamp(leanAmt * 2.5, 0, 1);
-  // back legs: from the moment he tips over an edge they do one bound (push off, swing, reach,
-  // land), timed to take him through the drop; then they go back to walking
+  // back legs, going down a step (a bound from the gallop, scrubbed by hand):
+  //  - as he tips over the edge they push off it, kicked back
+  //  - as his back end drops they swing forward under his hips, reaching for the step below. This
+  //    follows the drop itself (how level he's got since his steepest tilt), so they arrive just as
+  //    he lands, instead of finishing early and hanging stiff
+  //  - landing, they take his weight bent underneath him and push back through one stride into the walk
   const cqb = Math.cos(rat.pitch);
   const overEdge = Math.floor((rat.x + phys.front.u * cqb) / STEP_D) > Math.floor((rat.x + phys.hind.u * cqb) / STEP_D);
-  const bounding = walking && walkPhase === 'step' && (overEdge || rat.pitch < -0.25);
-  if (bounding) legPose.bound = Math.min(1, legPose.bound + dt / 0.75);
-  else if (walkPhase !== 'step') legPose.bound = 0;
-  const goalH = bounding || (walking && walkPhase === 'settle' && landT < 0.12) ? 1 : 0;
+  const bounding = walking && walkPhase === 'step' && (overEdge || rat.pitch < -0.25 || legPose.swing > 0);
+  const landing = walking && walkPhase === 'settle' && landT < LAND_STANCE;
+  if (bounding) {
+    legPose.tip = Math.max(legPose.tip, -rat.pitch);
+    const level = legPose.tip > 0.3 ? THREE.MathUtils.clamp(1 - Math.max(0, -rat.pitch) / legPose.tip, 0, 1) : 0;
+    legPose.swing = Math.max(legPose.swing, level); // (only ever forward)
+  } else if (!landing) {
+    legPose.tip = 0;
+    legPose.swing = 0;
+  }
+  const goalH = bounding || (landing && landT < LAND_STANCE * 0.65) ? 1 : 0;
   if (legPose.hind && legPose.hind.paused) {
-    legPose.hind.time = (legPose.tPush + legPose.bound * 0.95 * legPose.hindDur) % legPose.hindDur;
+    const T = landing
+      ? legPose.tGather + (STANCE_FROM + (landT / LAND_STANCE) * (STANCE_TO - STANCE_FROM)) * legPose.stanceDur // bent under him, pushing back
+      : legPose.tPush + legPose.swing * SWING_TO * legPose.swingDur;                                           // kicked back -> swung forward
+    legPose.hind.time = ((T % legPose.hindDur) + legPose.hindDur) % legPose.hindDur;
   }
   if (legPose.front) legPose.front.time = legPose.fStride > 0
     ? (legPose.tReach + legPose.fStride * 0.9 * legPose.hindDur) % legPose.hindDur

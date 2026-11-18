@@ -220,6 +220,33 @@ function matteRat(root) {
   });
 }
 
+// The rat file's fur cards take their hair-strand cutouts from the wrong texture coordinates. The
+// strands are in a strip of the fur texture's alpha that only the cards' *second* UV set points at,
+// but glTF reads alpha through the first UV set, where the texture is solid, so every card drew as a
+// flat patch. Copy the strand alpha into its own map read through the second UV set. (Sketchfab
+// does the equivalent, which is why the fur looks right there.)
+function fixFurStrands(root) {
+  root.traverse((o) => {
+    if (!o.isMesh || o.material.name !== 'blackrat_fur' || !o.geometry.attributes.uv1) return;
+    const m = o.material, img = m.map.image;
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+    for (let i = 0; i < p.length; i += 4) { p[i] = p[i + 1] = p[i + 2] = p[i + 3]; p[i + 3] = 255; } // (alphaMap reads green)
+    x.putImageData(d, 0, 0);
+    const t = new THREE.CanvasTexture(c);
+    t.channel = 1;
+    t.flipY = false;
+    t.colorSpace = THREE.NoColorSpace;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    m.alphaMap = t;
+    m.needsUpdate = true;
+  });
+}
+
 async function loadModels() {
   const [ratGltf, pizzaGltf, stationGltf] = await Promise.all([
     loader.loadAsync('assets/rat.glb'),
@@ -237,6 +264,7 @@ async function loadModels() {
   const ratScene = ratGltf.scene;
   prepMaterials(ratScene, 0.6);
   matteRat(ratScene);
+  fixFurStrands(ratScene);
   ratHolder.add(ratScene);
   ratScene.updateMatrixWorld(true);
 

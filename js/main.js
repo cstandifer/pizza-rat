@@ -606,15 +606,21 @@ const phys = {
   body: null, active: false,
   front: { u: 0.11, v: 0 }, hind: { u: 0.02, v: 0 }, nose: null, // measured from the bones each frame
   pts: [], frontAir: 0, hindAir: 0, rearAir: 0, airMax: 0, reach: 0,
-  hopT: -1, // seconds into a hop down a step (-1: not hopping)
+  hopT: -1,    // seconds into a hop down a step (-1: not hopping)
+  crouchT: -1, // seconds crouched at the edge, about to hop (-1: not crouching)
 };
 // Hopping down a step: he walks to the edge leaning out, front paws over the drop; when his back
 // paws reach the edge he pushes off with them and hops down, front paws landing first, back paws
 // right after, and walks straight on.
-const HOP_AT = 0.035;  // m: how close his back paws get to the edge before he pushes off
-const HOP_VX = 0.48;   // m/s forward (enough to carry his back end past the edge), and...
-const HOP_VY = 0.35;   // ...m/s up, from the push (a small hop, not a leap)
-const HOP_PITCH = -0.3; // radians nose-down he tips to in the air, so his front paws land first
+// Like a real jump off a ledge: he gathers himself at the edge, pushes off with his back feet, and
+// because they push from behind his centre of mass he rotates nose-down through the air, so his
+// front paws land first and his back end swings down after them.
+const HOP_AT = 0.05;       // m: how close his back paws get to the edge before he gathers himself
+const CROUCH_T = 0.15;     // s: crouched at the edge, back legs bent, before he pushes off
+const HOP_VX = 0.4;        // m/s forward (enough to carry his back end past the edge), and...
+const HOP_VY = 0.4;        // ...m/s up, from the push (a small hop, not a leap)
+const HOP_SPIN = -1.8;     // rad/s nose-down the push sets him rotating at
+const HOP_MAX_TILT = -0.75; // radians: in the air he rotates freely, but no further nose-down than this
 function setupPhysics() {
   phys.body = new RatBody({ ground: treadTop, stepD: STEP_D, stepH: STEP_H, gyration: 0.07 * CONFIG.ratLength / 0.38 });
   phys.front = { u: FRONT_PAW_X, v: 0 };
@@ -668,7 +674,7 @@ function stepPhysics(dt) {
     B.place(rat.x, rat.y, rat.pitch, phys.com);
     phys.active = true;
     phys.frontAir = phys.hindAir = phys.airMax = 0;
-    phys.hopT = -1;
+    phys.hopT = phys.crouchT = -1;
   }
   const P = phys.pts;
   // careful near the next edge: if his back end hasn't come down yet, he creeps until it does
@@ -705,24 +711,34 @@ function stepPhysics(dt) {
   // front paws planted, back end in the air: his hind legs swing down for the step
   // (only once his haunches are off the step: pushing them down while they're on it just pins them)
   B.levelAssist = phys.frontAir === 0 && phys.rearAir > 0.02 && rat.pitch < -0.1 ? 120 : 0;
-  // the hop: front paws out over the drop, back paws reaching the edge (or he's starting to tip over
-  // it), back end still on the step: he pushes off
+  // ...and eases it onto the step as he comes level, rather than whipping on past level nose-up
+  if (phys.frontAir === 0 && phys.rearAir > 0.02 && rat.pitch > -0.12 && B.w > 0.8) B.w = 0.8;
+  // the hop: front paws out over the drop, back paws nearing the edge, back end still on the step:
+  // he crouches a moment, then pushes off (straight away if he's already starting to tip over)
   const hindX = rat.x + phys.hind.u * cq;
   const hindToEdge = Math.ceil(hindX / STEP_D) * STEP_D - hindX;
   const frontOver = Math.floor(frontX / STEP_D) > Math.floor(hindX / STEP_D);
-  if (phys.hopT >= 0) {
-    phys.hopT += dt;
-    if (phys.hopT > 0.5) phys.hopT = -1; // (should have landed by now: back to normal contacts either way)
-  } else if (walkPhase !== 'perch' && frontOver && phys.rearAir === 0 && (hindToEdge < HOP_AT || rat.pitch < -0.12)
-    && rat.pitch > -0.4 && landT > 0.15) {
+  const launch = () => {
+    phys.crouchT = -1;
     phys.hopT = 0;
     phys.hopEdge = Math.ceil(hindX / STEP_D) * STEP_D;
     B.vx = Math.max(B.vx, HOP_VX);
     B.vy = HOP_VY;
-    B.w = 0;
+    B.w = HOP_SPIN;
     walkPhase = 'step';
+  };
+  if (phys.hopT >= 0) {
+    phys.hopT += dt;
+    if (phys.hopT > 0.6) phys.hopT = -1; // (should have landed by now: back to normal contacts either way)
+  } else if (phys.crouchT >= 0) {
+    phys.crouchT += dt;
+    P[0].drive = P[1].drive = 0; // (holding still, gathered)
+    if (phys.crouchT >= CROUCH_T || rat.pitch < -0.3) launch(); // (tipping a lot already: go)
+  } else if (walkPhase !== 'perch' && frontOver && phys.rearAir === 0 && (hindToEdge < HOP_AT || rat.pitch < -0.12)
+    && rat.pitch > -0.4 && landT > 0.15) {
+    phys.crouchT = 0;
   }
-  B.airPitch = phys.hopT >= 0 ? HOP_PITCH : null;
+  B.airPitch = phys.hopT >= 0 ? HOP_MAX_TILT : null;
   // pushed off: his back paws, rump and belly leave the step; they don't catch its edge on the way over
   const ghost = phys.hopT >= 0 ? phys.hopEdge + 0.01 : 0;
   P[1].ghost = ghost;
@@ -733,7 +749,13 @@ function stepPhysics(dt) {
   rat.x = _rp.x; rat.y = _rp.y; rat.pitch = _rp.pitch;
 
   // which paws are down, and for how long they've been off the ground
-  if (P[0].touch && phys.frontAir > 0.12) phys.frontLanded = true; // front paws just came down after a drop
+  if (P[0].touch && phys.frontAir > 0.12) {
+    phys.frontLanded = true; // front paws just came down after a drop
+    // his front legs bend and take the landing: it doesn't flip him nose-up or knock him backwards
+    // (rigid legs would turn all his falling speed into a spin about his paws)
+    B.w = Math.min(B.w, 1.5);
+    B.vx = Math.max(B.vx, 0.05);
+  }
   phys.frontAir = P[0].touch ? 0 : phys.frontAir + dt;
   // his back end (back paws or haunches) on the ground?
   let rear = P[1].touch;
@@ -774,7 +796,8 @@ const legPose = {
 // with them under his hips, about where they stand in his walk (2.5 cm forward, behind his centre of
 // mass at 6 cm), so the swing stops halfway. (Measured from the clip.)
 const SWING_TO = 0.52;  // how far through the gallop's swing his back paws get by landing
-const KICK_FROM = 0.12, KICK_TO = 0.4; // the part of the gallop's stance that shoves them back (4 cm -> -1.4 cm)
+const KICK_FROM = 0.18, KICK_TO = 0.4; // the part of the gallop's stance that shoves them back (2.5 cm -> -1.4 cm)
+                                       // (KICK_FROM is also his crouch: back paws bent under his hips)
 const HOP_KICK = 0.09;  // seconds his back legs take to shove back off the edge...
 const HOP_TUCK = 0.25;  // ...and then to swing forward under him, by about when his front paws land
 const LEG_OVERRIDE = 30; // high weight so the held pose wins over the walk cycle for those legs
@@ -1460,6 +1483,11 @@ function updateRat(dt, tagOn) {
       const sq = Math.exp(-landT * 9) * Math.sin(Math.min(landT / 0.12, 1) * Math.PI);
       rat.y -= 0.01 * sq;
       bendGoal = -0.25 * Math.exp(-landT * 6) * Math.cos(landT * 14);
+    } else if (phys.crouchT >= 0) {
+      // gathering himself at the edge: crouched a little, looking down at where he'll land
+      rat.y -= 0.008 * smooth(Math.min(phys.crouchT / CROUCH_T, 1));
+      bendGoal = 0.35 * leanAmt;
+      lookGoal2 = -0.2;
     } else if (phys.hopT >= 0 && phys.frontAir > 0) {
       // mid-hop: head up, eyes on where he'll land, shoulders only a little forward
       bendGoal = 0.2 * leanAmt;
@@ -1519,9 +1547,12 @@ function updateRat(dt, tagOn) {
   const cqb = Math.cos(rat.pitch);
   const overEdge = Math.floor((rat.x + phys.front.u * cqb) / STEP_D) > Math.floor((rat.x + phys.hind.u * cqb) / STEP_D);
   const hopping = walking && phys.hopT >= 0;
-  const bounding = !hopping && walking && walkPhase === 'step' && (overEdge || rat.pitch < -0.25 || legPose.swing > 0);
+  const crouching = walking && phys.crouchT >= 0;
+  const bounding = !hopping && !crouching && walking && walkPhase === 'step' && (overEdge || rat.pitch < -0.25 || legPose.swing > 0);
   let T = null;
-  if (hopping) {
+  if (crouching) {
+    T = legPose.tGather + KICK_FROM * legPose.stanceDur; // back legs bent under him, ready to push
+  } else if (hopping) {
     const k = phys.hopT;
     T = k < HOP_KICK
       ? legPose.tGather + THREE.MathUtils.lerp(KICK_FROM, KICK_TO, k / HOP_KICK) * legPose.stanceDur // shoving back

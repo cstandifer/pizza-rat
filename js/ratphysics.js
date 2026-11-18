@@ -40,7 +40,7 @@ export class RatBody {
     this.bellyDrive = 0;                    // m/s: his back legs pushing him over a step's nose
     this.minTilt = -1.0;                    // radians: his muscles fight tipping further than this
     this.maxTilt = 0.6;
-    this.airPitch = null;                   // radians: in the air, he twists toward this tilt (null: just stops spinning)
+    this.airPitch = null;                   // radians: hopping, he rotates freely but not past this tilt (null: just stops spinning)
     this._prev = { cx: 0, cy: 0, th: 0 };
     this._gripping = true; this._touching = true;
   }
@@ -114,9 +114,9 @@ export class RatBody {
         // (swinging his back end down to the step, he eases it in rather than overshooting)
         this.w += (-700 * over - (over ? 35 * this.w : 0) - (4 + this.levelAssist) * th - (this.levelAssist ? 12 * this.w : 0)) * h;
       } else if (this.airPitch !== null) {
-        // hopping down a step (paws off the ground, even if his belly brushes the edge): he tips a
-        // little nose-down, so his front paws land first
-        this.w += (60 * (this.airPitch - th) - 14 * this.w) * h;
+        // hopping down a step (paws off the ground, even if his belly brushes the edge): he keeps
+        // rotating the way the push set him going; his body only stops him tipping past airPitch
+        if (th < this.airPitch) this.w += (60 * (this.airPitch - th) - 14 * this.w) * h;
       } else if (!touching) {
         this.w *= Math.exp(-10 * h);
       }

@@ -176,6 +176,7 @@ The step-down still looked scripted ("as soon as his body dips off the stairs, g
 - **Front legs don't scurry** faster than he's actually moving. The walk cycle's speed follows his real speed, so his paws don't skate.
 - **Bigger, more natural strides** across each step: the walk animation is exaggerated 1.35×.
 - **His head turns and tugs** toward the slice like it has weight, with a tug on every stride, and the slice was made a little less floppy.
+- **Less shiny:** the model's textures made parts of his fur metallic and very glossy, so he looked wet and plasticky. His fur and skin are now non-metal and matte, darkened back to his original shade, and his eyes stay glossy.
 
 ### 8. Sound
 

@@ -197,6 +197,29 @@ function prepMaterials(root, envI) {
   });
 }
 
+// The rat model's texture marks parts of his fur as metal and very glossy, so he looked wet and
+// plasticky. Real fur isn't metal and is fairly matte: drop the metal, give the fur and skin an even
+// matte finish, and darken the fur back to how dark he looked before (the metal was darkening it).
+// The eyes stay glossy so he still looks alive.
+function matteRat(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of [].concat(o.material)) {
+      m.metalness = 0;
+      m.metalnessMap = null;
+      if (m.name !== 'blackrat_eyes') {
+        const fur = m.name === 'blackrat_fur'; // (the other one is skin: ears, paws, tail)
+        m.roughnessMap = null;
+        m.roughness = fur ? 0.85 : 0.7;
+        m.specularIntensity = fur ? 0.35 : 0.3;
+        m.envMapIntensity = 0.35;
+        m.color.setScalar(0.6);
+      }
+      m.needsUpdate = true;
+    }
+  });
+}
+
 async function loadModels() {
   const [ratGltf, pizzaGltf, stationGltf] = await Promise.all([
     loader.loadAsync('assets/rat.glb'),
@@ -213,6 +236,7 @@ async function loadModels() {
   // ---------- RAT ----------
   const ratScene = ratGltf.scene;
   prepMaterials(ratScene, 0.6);
+  matteRat(ratScene);
   ratHolder.add(ratScene);
   ratScene.updateMatrixWorld(true);
 

@@ -19,7 +19,7 @@ const CONFIG = {
   pizzaLength: 0.22,    // meters, tip to crust
   walkAnim: 'walk_big',  // walk_A1 (quick), walk_A2 (medium), walk_A3 (slow, heavy)
   walkAnimSpeed: 0.9,
-  walkSpeed: 0.15,      // how fast he walks on each step (m/s)
+  walkSpeed: 0.11,      // how fast he walks on each step (m/s)
   runSpeed: 1.1,        // how fast he bolts to hide (m/s)
   minHideTime: 1.0,     // seconds he stays hidden even if you close the flap right away
   peekEvery: 3.0,       // seconds between peeks while hiding
@@ -591,7 +591,8 @@ function updateWalk(dt) {
     // his paws walk him along; a bit more carefully once his front paws are out over a drop
     // (on landing he just keeps going: his legs carry on walking out of the drop)
     const pace = walkPhase === 'walk' ? walkWander : Math.max(walkWander, 0.85); // (no pausing mid-step)
-    const goal = CONFIG.walkSpeed * pace; // (no slowing at the edge: he walks to it and hops)
+    // (leaning out over an edge he goes a little carefully, then hops)
+    const goal = CONFIG.walkSpeed * pace * (phys.frontAir > 0.05 && phys.hopT < 0 ? 0.75 : 1);
     walkV += (goal - walkV) * damp(goal < walkV ? 7 : 5, dt);
     // legs step exactly as fast as he's moving, so planted paws stay put (no skating, no scurrying)
     const v = phys.active ? Math.abs(phys.body.vx) : walkV;
@@ -611,7 +612,7 @@ const phys = {
 // paws reach the edge he pushes off with them and hops down, front paws landing first, back paws
 // right after, and walks straight on.
 const HOP_AT = 0.035;  // m: how close his back paws get to the edge before he pushes off
-const HOP_VX = 0.5;    // m/s forward, and...
+const HOP_VX = 0.48;   // m/s forward (enough to carry his back end past the edge), and...
 const HOP_VY = 0.35;   // ...m/s up, from the push (a small hop, not a leap)
 const HOP_PITCH = -0.3; // radians nose-down he tips to in the air, so his front paws land first
 function setupPhysics() {
@@ -620,7 +621,7 @@ function setupPhysics() {
   phys.hind = { u: HIND_PAW_X, v: 0 };
   const belly = bodyALocal.y - bodyR * 0.85;
   const rumpU = bodyALocal.x - bodyR * 0.8; // back of his haunches (the capsule end is the middle of them)
-  phys.body.belly = { u0: rumpU, u1: bodyBLocal.x, v: belly };
+  phys.body.belly = phys.bellyLine = { u0: rumpU, u1: bodyBLocal.x, v: belly };
   // his weight is mostly in his haunches: centre of mass a little ahead of his back paws
   phys.com = { u: HIND_PAW_X + (FRONT_PAW_X - HIND_PAW_X) * 0.3, v: bodyALocal.y };
   // contact points: [0] front paws, [1] back paws, [2] nose, then belly and rump
@@ -711,7 +712,7 @@ function stepPhysics(dt) {
   const frontOver = Math.floor(frontX / STEP_D) > Math.floor(hindX / STEP_D);
   if (phys.hopT >= 0) {
     phys.hopT += dt;
-    if (phys.hopT > 1.2) phys.hopT = -1; // (landed some other way: done)
+    if (phys.hopT > 0.5) phys.hopT = -1; // (should have landed by now: back to normal contacts either way)
   } else if (walkPhase !== 'perch' && frontOver && phys.rearAir === 0 && (hindToEdge < HOP_AT || rat.pitch < -0.12)
     && rat.pitch > -0.4 && landT > 0.15) {
     phys.hopT = 0;
@@ -722,10 +723,11 @@ function stepPhysics(dt) {
     walkPhase = 'step';
   }
   B.airPitch = phys.hopT >= 0 ? HOP_PITCH : null;
-  // pushed off: his back paws and rump leave the step; they don't catch its edge on the way over
+  // pushed off: his back paws, rump and belly leave the step; they don't catch its edge on the way over
   const ghost = phys.hopT >= 0 ? phys.hopEdge + 0.01 : 0;
   P[1].ghost = ghost;
-  for (let i = 3; i < P.length; i++) if (P[i].rear) P[i].ghost = ghost;
+  for (let i = 3; i < P.length; i++) P[i].ghost = ghost; // (each point only until it's past that edge)
+  B.belly = phys.hopT >= 0 ? null : phys.bellyLine;
   if (dt) B.step(dt, P);
   B.root(_rp);
   rat.x = _rp.x; rat.y = _rp.y; rat.pitch = _rp.pitch;
@@ -745,7 +747,7 @@ function stepPhysics(dt) {
       settleFor = 0.3;
       phys.hopT = -1;
       phys.body.w *= 0.3; // (his legs take the landing: he doesn't rock on over)
-      walkV = Math.max(walkV, Math.min(0.25, Math.abs(phys.body.vx))); // carries the drop's momentum
+      walkV = Math.max(walkV, Math.min(CONFIG.walkSpeed, Math.abs(phys.body.vx))); // walks straight on (no faster than his walk)
     }
     phys.hindAir = 0;
   } else phys.hindAir += dt;

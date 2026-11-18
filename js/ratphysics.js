@@ -40,6 +40,7 @@ export class RatBody {
     this.bellyDrive = 0;                    // m/s: his back legs pushing him over a step's nose
     this.minTilt = -1.0;                    // radians: his muscles fight tipping further than this
     this.maxTilt = 0.6;
+    this.airPitch = null;                   // radians: in the air, he twists toward this tilt (null: just stops spinning)
     this._prev = { cx: 0, cy: 0, th: 0 };
     this._gripping = true; this._touching = true;
   }
@@ -86,9 +87,10 @@ export class RatBody {
   /**
    * Advance the simulation.
    * @param {number} dt
-   * @param {Array<{u:number,v:number,mu:number,drive?:number,touch?:boolean}>} points
+   * @param {Array<{u:number,v:number,mu:number,drive?:number,ghost?:number,touch?:boolean}>} points
    *        contact points (local). drive = speed (m/s, +x) a gripping paw walks the body at.
-   *        On return each point's `touch` says whether it touched the stairs this frame.
+   *        ghost = an x: while the point is behind it, it doesn't touch anything (paws pushing off
+   *        a step don't catch on its edge). On return each point's `touch` says whether it touched.
    */
   step(dt, points) {
     const n = Math.max(1, Math.ceil(dt / SUBSTEP));
@@ -109,7 +111,12 @@ export class RatBody {
       const th = this.th;
       if (gripping) {
         const over = th < this.minTilt ? th - this.minTilt : th > this.maxTilt ? th - this.maxTilt : 0;
-        this.w += (-700 * over - (over ? 35 * this.w : 0) - (4 + this.levelAssist) * th) * h;
+        // (swinging his back end down to the step, he eases it in rather than overshooting)
+        this.w += (-700 * over - (over ? 35 * this.w : 0) - (4 + this.levelAssist) * th - (this.levelAssist ? 12 * this.w : 0)) * h;
+      } else if (this.airPitch !== null) {
+        // hopping down a step (paws off the ground, even if his belly brushes the edge): he tips a
+        // little nose-down, so his front paws land first
+        this.w += (60 * (this.airPitch - th) - 14 * this.w) * h;
       } else if (!touching) {
         this.w *= Math.exp(-10 * h);
       }
@@ -122,6 +129,7 @@ export class RatBody {
       let wall = false;
       for (const p of points) {
         this._world(p.u, p.v, this.cx, this.cy, this.th, P);
+        if (p.ghost && P.x < p.ghost) continue; // (a paw passing over the edge it pushed off)
         const g = this.ground(P.x);
         const d = g - P.y;
         if (d <= 0) continue;

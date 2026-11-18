@@ -177,7 +177,7 @@ The step-down still looked scripted ("as soon as his body dips off the stairs, g
 - **Bigger, more natural strides** across each step: the walk animation is exaggerated 1.35×.
 - **His head turns and tugs** toward the slice like it has weight, with a tug on every stride, and the slice was made a little less floppy.
 - **Less shiny:** the model's textures made parts of his fur metallic and very glossy, so he looked wet and plasticky. His fur and skin are now non-metal and matte, darkened back to his original shade, and his eyes stay glossy.
-- **Real fur strands:** the fur still looked blocky compared with the original model on Sketchfab. The cause was a bug in the model file: its fur cards read their hair-strand cutouts through the wrong set of texture coordinates, where the texture is solid, so each card drew as a flat patch. The code now reads the strands through the right coordinates, and the fur is soft and fluffy.
+- **Real fur strands:** the fur still looked blocky compared with the original model on Sketchfab. The cause was a bug in the model file: its fur cards read their hair-strand cutouts through the wrong set of texture coordinates, where the texture is solid, so each card drew as a flat patch. The code now reads the strands through the right coordinates. That made him look thin, because the strands faded out at a distance, so the cutoff was lowered and strands are boosted as he gets farther away. Now he's as full as before, with a scruffy, hairy outline.
 
 ### 8. Sound
 

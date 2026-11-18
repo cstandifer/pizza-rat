@@ -220,6 +220,9 @@ function matteRat(root) {
   });
 }
 
+const FUR_CUTOFF = 0.12;   // lower = fluffier fur (the model's own value was 0.68)
+const STRAND_BOOST = 0.8;  // how much thin strands are thickened as he gets farther from the camera
+
 // The rat file's fur cards take their hair-strand cutouts from the wrong texture coordinates. The
 // strands are in a strip of the fur texture's alpha that only the cards' *second* UV set points at,
 // but glTF reads alpha through the first UV set, where the texture is solid, so every card drew as a
@@ -243,6 +246,22 @@ function fixFurStrands(root) {
     t.colorSpace = THREE.NoColorSpace;
     t.anisotropy = renderer.capabilities.getMaxAnisotropy();
     m.alphaMap = t;
+    // Fluffier: a low cutoff keeps the soft ends of each strand. And the farther away he is, the
+    // blurrier the texture is read (mipmaps), which fades thin strands, so strands are boosted back up
+    // with distance and his fur doesn't thin out (Ben Golus's "anti-aliased alpha test" trick).
+    m.alphaTest = FUR_CUTOFF;
+    const size = c.width;
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uStrandTexSize = { value: size };
+      shader.fragmentShader = 'uniform float uStrandTexSize;\n' + shader.fragmentShader.replace('#include <alphamap_fragment>', `
+        #ifdef USE_ALPHAMAP
+          vec2 st = vAlphaMapUv * uStrandTexSize;
+          vec2 sdx = dFdx(st), sdy = dFdy(st);
+          float strandLod = max(0.0, 0.5 * log2(max(dot(sdx, sdx), dot(sdy, sdy))));
+          diffuseColor.a *= texture2D(alphaMap, vAlphaMapUv).g * (1.0 + strandLod * ${STRAND_BOOST.toFixed(2)});
+        #endif`);
+    };
+    m.customProgramCacheKey = () => 'fur-strands';
     m.needsUpdate = true;
   });
 }
